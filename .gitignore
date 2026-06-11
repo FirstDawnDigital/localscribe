@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version-cache
+
+# uv
+.uv-cache/
+
+# Local secrets
+.env
+
+# Generated outputs
+output/
+
+# Audio input (interviews, voice memos, test recordings — never commit)
+input/
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.ogg
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
