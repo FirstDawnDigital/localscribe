@@ -24,6 +24,8 @@ def render(
     summary: str | None,
     whisper_model: str,
     ollama_model: str | None,
+    audio_preset: str | None = None,
+    audio_metrics: dict[str, float | None] | None = None,
 ) -> str:
     """Build the full Markdown document."""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -38,6 +40,15 @@ def render(
     ]
     if ollama_model:
         frontmatter.append(f"summary_model: {ollama_model}")
+    if audio_preset:
+        frontmatter.append(f"audio_preset: {audio_preset}")
+    if audio_metrics:
+        frontmatter.append("audio_metrics:")
+        for k, v in audio_metrics.items():
+            if v is None:
+                frontmatter.append(f"  {k}: null")
+            else:
+                frontmatter.append(f"  {k}: {v:.2f}")
     frontmatter.append("---")
 
     parts: list[str] = ["\n".join(frontmatter), ""]

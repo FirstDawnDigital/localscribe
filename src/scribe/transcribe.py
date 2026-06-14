@@ -24,6 +24,27 @@ class TranscriptResult:
     segments: list[Segment]
 
 
+# Decoder defaults hardened against Whisper's signature failure modes on noisy/
+# far-field audio: repetition loops, YouTube-caption hallucinations on silence,
+# and self-reinforcing context drift. Tunable via WhisperX's asr_options.
+HARDENED_ASR_OPTIONS: dict[str, Any] = {
+    # Stop the previous transcript from biasing the next window — primary cause of
+    # "Ja. Ja. Ja." loops once one bad token slips in.
+    "condition_on_previous_text": False,
+    # Lower than WhisperX default 2.4 so collapsed-entropy segments (the signature
+    # of a repetition loop) get rejected instead of emitted.
+    "compression_ratio_threshold": 2.0,
+    # Slightly more aggressive silence rejection than the 0.6 default; pairs with
+    # condition_on_previous_text=False to kill subtitle-credit hallucinations on
+    # near-silent tails.
+    "no_speech_threshold": 0.5,
+    # Newer faster-whisper option: when the model is "transcribing" silence,
+    # drop the segment entirely. Safe no-op on faster-whisper builds that
+    # don't recognise the key.
+    "hallucination_silence_threshold": 0.5,
+}
+
+
 def probe_duration(audio_path: Path) -> float:
     """Return audio duration in seconds via ffprobe."""
     result = subprocess.run(
@@ -46,6 +67,7 @@ def transcribe(
     cfg: Config,
     language: str | None = None,
     diarize: bool = True,
+    vad_options: dict[str, float] | None = None,
 ) -> TranscriptResult:
     """Run full WhisperX pipeline: transcribe → align → diarize → assign speakers."""
     import whisperx
@@ -54,12 +76,26 @@ def transcribe(
     duration = probe_duration(audio_path)
 
     # 1. Transcribe
-    asr_model = whisperx.load_model(
-        cfg.whisper_model,
+    load_kwargs: dict[str, Any] = dict(
         device=cfg.whisper_device,
         compute_type=cfg.whisper_compute_type,
         language=language,
+        asr_options=HARDENED_ASR_OPTIONS,
     )
+    if vad_options:
+        load_kwargs["vad_options"] = vad_options
+    try:
+        asr_model = whisperx.load_model(cfg.whisper_model, **load_kwargs)
+    except TypeError:
+        # Older WhisperX builds (or faster-whisper backends) may reject one of
+        # the hardened options (typically hallucination_silence_threshold).
+        # Retry with a minimal safe subset.
+        safe_opts = {
+            k: v for k, v in HARDENED_ASR_OPTIONS.items()
+            if k != "hallucination_silence_threshold"
+        }
+        load_kwargs["asr_options"] = safe_opts
+        asr_model = whisperx.load_model(cfg.whisper_model, **load_kwargs)
     asr_result: dict[str, Any] = asr_model.transcribe(audio, batch_size=8)
     detected_lang: str = asr_result["language"]
 

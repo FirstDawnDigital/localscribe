@@ -41,6 +41,32 @@ dependencies = [
     "python-dotenv>=1.0.1",
 ]
 
+[project.optional-dependencies]
+# `pip install scribe[eval]` to install meeteval for tcpWER scoring against a
+# manually curated reference transcript. Kept optional because meeteval pulls
+# in a fair amount of numpy/cython tooling that isn't needed for daily use.
+eval = [
+    "meeteval>=0.4.0",
+]
+# `pip install scribe[separate]` for PixIT speech separation (B3). asteroid
+# provides ToTaToNet (the separation network), speechbrain provides the
+# ECAPA speaker embeddings PixIT uses to attribute streams. Kept optional
+# because together they pull a fair amount of extra deps that aren't needed
+# for the default pipeline.
+separate = [
+    "asteroid>=0.7.0",
+    # speechbrain >=1.0 has the EncoderClassifier under speechbrain.inference
+    # that pyannote.audio 4.0.4 imports, but >=1.0 also dropped the `token`
+    # kwarg pyannote still passes. src/scribe/separate.py monkey-patches
+    # Pretrained.__init__ to drop that kwarg.
+    "speechbrain>=1.0.0",
+    # asteroid drags torchmetrics 0.11.4 which does `from pkg_resources
+    # import ...`; that import fails under setuptools >=81 where
+    # pkg_resources was removed. Pin setuptools below 81 so the [separate]
+    # extra is installable out of the box.
+    "setuptools<81",
+]
+
 [project.urls]
 Repository = "https://github.com/FirstDawnDigital/localscribe"
 Issues = "https://github.com/FirstDawnDigital/localscribe/issues"

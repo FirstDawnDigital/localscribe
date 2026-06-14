@@ -22,6 +22,24 @@ input/
 *.flac
 *.ogg
 
+# Hand-curated reference transcripts (verbatim content of real recordings → PII)
+references/
+
+# Local archive for private artifacts kept on disk but never committed
+# (intermediate exports, hand-edited drafts, audit logs, etc.)
+archive/
+
+# Vendored binary tooling (e.g. deep-filter releases) — fetch locally, do not commit
+.tools/
+
+# Ad-hoc test scripts that may contain references to private audio paths
+scripts/
+
+# speechbrain creates a literal `None/` symlink cache when `savedir=None`
+# is passed — pyannote/PixIT triggers this on first load. Harmless symlinks
+# into the HF cache, but should never be committed.
+None/
+
 # OS
 .DS_Store
 
