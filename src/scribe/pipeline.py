@@ -149,6 +149,27 @@ def process_file(
             )
         else:
             result = transcribe(audio_for_asr, cfg, language=language, diarize=diarize)
+            # Apply the same subtitle-credit hallucination filter as the PixIT
+            # path. Whisper occasionally emits these on low-signal/silent
+            # spans regardless of whether we ran source separation first.
+            from .separate import is_subtitle_hallucination  # local import
+            kept: list[Segment] = []
+            dropped = 0
+            for seg in result.segments:
+                if is_subtitle_hallucination(seg.text.strip()):
+                    dropped += 1
+                    continue
+                kept.append(seg)
+            if dropped:
+                console.print(
+                    f"  [yellow]Dropped {dropped} subtitle-credit "
+                    f"hallucination(s)[/yellow]"
+                )
+                result = TranscriptResult(
+                    language=result.language,
+                    duration=result.duration,
+                    segments=kept,
+                )
 
     console.print(
         f"  language=[green]{result.language}[/green] "
